@@ -43,6 +43,7 @@ def delete_key(user_name, key_id):
             UserName = user_name,
             AccessKeyId = key_id
         )
+        print("Deleted access key %s for %s.", key_id, user_name)
     except Exception:
         print("Couldn't delete key %s for %s", key_id, user_name)
         raise
