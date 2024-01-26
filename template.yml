@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  IAM Access Key Rotate
+
+Parameters:
+  username:
+    Type: String
+    Description: The username of the IAM role that requires the key rotation
+    Default: testuser
+
+Resources:
+  MyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: iam_key_rotate_role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+
+  MyPolicy: 
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyName: iam_key_rotate_policy
+      PolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: "Allow"
+            Action: 
+              - iam:DeleteAccessKey
+              - iam:GetAccessKeyLastUsed
+              - iam:UpdateAccessKey
+              - iam:CreateAccessKey
+              - iam:ListAccessKeys
+            Resource: "*"
+          - Effect: Allow
+            Action: 
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+            Resource: "*"
+          - Effect: Allow
+            Action: logs:PutLogEvents
+            Resource: "*"
+      Roles: 
+        - Ref: MyRole
+
+  KeyRotateFunction:
+    Type: AWS::Serverless::Function
+    Description: 'Rotate IAM Access Key'
+    Properties:
+      FunctionName: iam_key_rotate
+      CodeUri: src/
+      Handler: handler.lambda_handler
+      Role: !GetAtt MyRole.Arn
+      Runtime: python3.11
+      Timeout: 120
+      MemorySize: 215
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          USERNAME: !Ref username
+      Events:
+        ScheduleEvent:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: "rate(30 days)"
+            
