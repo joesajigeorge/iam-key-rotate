@@ -71,4 +71,15 @@ Resources:
           Type: ScheduleV2
           Properties:
             ScheduleExpression: "rate(30 days)"
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 0 1 * ? *)
+            Input: '{"state": "create"}'
+        ScheduleEvent2:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 0 5 * ? *)
+            Input: '{"state": "delete"}'
             
