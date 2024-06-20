@@ -1,6 +1,7 @@
 # IAM Access Key Rotation
 
-This Python SAM application is to deploy a Lambda function to handle AWS IAM user access key rotation.
+This Python SAM application is to deploy a Lambda function to handle AWS IAM user access key rotation.  
+It is scheduled to create key on 1st of every month and retire key on 5th of every month.  
 
     In AWS, you can have a maximum of two access keys per user. 
     Make sure that there is only one access key before executing this program.
