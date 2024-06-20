@@ -3,77 +3,63 @@ import boto3
 
 iam = boto3.client("iam")
 
-def create_key(user_name):
-    try:
-        response = iam.create_access_key(
-            UserName = user_name
-        )
-        return response
-
-    except Exception:
-        print("Couldn't create access key for %s.", user_name)
-        raise
-
-def list_key(user_name):
-    try:
-        response = iam.list_access_keys(
-            UserName = user_name
-        )
-        return response
-
-    except Exception:
-        print("Couldn't list access keys for %s.", user_name)
-        raise
-
-def update_key(user_name, key_id):
-    try:
-        response = iam.update_access_key(
-            UserName = user_name,
-            AccessKeyId = key_id,
-            Status= 'Inactive'
-        )
-        print("Updated access key %s for %s.", key_id, user_name)
-    except Exception:
-        print("Couldn't update key %s for %s", key_id, user_name)
-        raise
-
-def delete_key(user_name, key_id):
-    try:
-        response = iam.delete_access_key(
-            UserName = user_name,
-            AccessKeyId = key_id
-        )
-        print("Deleted access key %s for %s.", key_id, user_name)
-    except Exception:
-        print("Couldn't delete key %s for %s", key_id, user_name)
-        raise
-
 def lambda_handler(event, context):
 
     '''
     In AWS, you can have a maximum of two access keys per user. 
-    Make sure that there is only one access key before executing this program.
     '''
-    oldKey = ""
 
     username = os.environ['USERNAME']
     print("Username: " + username)
 
-    # List the access keys and fetch the active one.
-    listkeyResponse = list_key(username)
-    for key in listkeyResponse["AccessKeyMetadata"]:
-        if(key["Status"] == "Active"):
-            oldKey = key["AccessKeyId"]
-    print("Old Key: " + oldKey)
+    try:
+        if (event['state'] == "delete"):
 
-    # Create a new access key
-    createKeyResponse = create_key(username)
-    newKey = createKeyResponse["AccessKey"]["AccessKeyId"]
-    print("New Access Key: " + newKey)
-    print("New Secret Access Key: " + createKeyResponse["AccessKey"]["SecretAccessKey"])
+            oldest_access_key_id = None
+            oldest_access_key_create_date = None
 
-    # Deactivate the old access key
-    update_key(username, oldKey)
+            listResponse = iam.list_access_keys(UserName=username)
 
-    # Delete the old access key
-    delete_key(username, oldKey)
+            # Iterate over the access keys
+            for access_key in listResponse['AccessKeyMetadata']:
+                create_date = access_key['CreateDate']
+
+                # Check if this access key is older than the current oldest
+                if oldest_access_key_create_date is None or create_date < oldest_access_key_create_date:
+                    oldest_access_key_id = access_key['AccessKeyId']
+                    oldest_access_key_create_date = create_date
+
+            # Print the oldest access key
+            print("Oldest access key: " + oldest_access_key_id)
+
+            # Deactivate the old access key
+            updateResponse = iam.update_access_key(
+                UserName = username,
+                AccessKeyId = oldest_access_key_id,
+                Status= 'Inactive'
+            )
+            print("Deactivated access key %s for %s.", oldest_access_key_id, username)
+
+            # Delete the old access key
+            deleteResponse = iam.delete_access_key(
+                UserName = username,
+                AccessKeyId = oldest_access_key_id
+            )
+            print("Deleted access key %s for %s.", oldest_access_key_id, username)
+        
+        elif(event['state'] == "create"):
+
+            # Create a new access key
+            createResponse = iam.create_access_key(
+                UserName = username
+            )
+
+            new_access_key_id = createResponse["AccessKey"]["AccessKeyId"]
+            print("New Access Key: " + new_access_key_id)
+            print("New Secret Access Key: " + createResponse["AccessKey"]["SecretAccessKey"])
+
+            # We can email the keys to the persons or upload the keys as a file to cloud
+
+    except Exception as e:
+        print(e)
+        print("Something failed")
